@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Moinul Islam — Portfolio</title>
+
+<!--
+  ============================================================================
+  LEAGUE OF LEGENDS — THEMED PORTFOLIO
+  Single-file build: HTML + CSS + JS, no frameworks.
+
+  STRUCTURE
+    Phase 1  →  #loading   "ENGINEER FOUND"  (Match Found screen)
+    Phase 2  →  #select     "DECLARE YOUR SECTION" (Champion Select screen)
+
+  HOW TO EDIT YOUR CONTENT
+    - Search for the word "CONTENT" to find the JS data array (cards).
+    - Replace [YOUR NAME], [PROJECT NAME], etc. placeholders.
+    - Add/remove cards by editing the CARDS array — each card has a `role`
+      that maps to a left-sidebar section.
+  ============================================================================
+-->
+
+<style>
+  /* ===========================================================================
+     0. FONT STACK
+     League uses "Beaufort for LOL" (display) + "Spiegel" (body). Those are
+     licensed, so we fall back to a serif (Georgia) for the cinematic display
+     headings and a clean system sans for body text.
+     =========================================================================== */
+  :root {
+    --font-display: "Beaufort for LOL", "Trajan Pro", Georgia, "Times New Roman", serif;
+    --font-body: "Spiegel", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+    /* ---- League palette (exact-ish) ---- */
+    --navy-900: #010A13;   /* deepest background */
+    --navy-800: #0A1628;   /* panel background */
+    --navy-700: #0A323C;   /* teal-tinted dark */
+    --navy-600: #102D3E;
+    --gold-400: #C89B3C;   /* primary gold accent */
+    --gold-300: #C8AA6E;   /* lighter gold (borders) */
+    --gold-200: #F0E6D2;   /* parchment text */
+    --gold-100: #F0E6D2;
+    --teal-400: #0BC4C2;   /* teal/cyan highlight */
+    --teal-300: #0AC8B9;
+    --teal-glow: rgba(11, 196, 194, 0.55);
+    --text-dim: #A09B8C;   /* muted body text */
+    --hairline: #1E2328;   /* subtle borders */
+    --hextech-blue: #0397AB;
+  }
+
+  /* ===========================================================================
+     1. RESET & BASE
+     =========================================================================== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--navy-900);
+    color: var(--gold-200);
+    overflow: hidden;            /* phases manage their own scroll */
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.02em;
+  }
+
+  /* Shared cinematic background: layered radial gradients + vignette */
+  .bg-cinematic {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, #0A2530 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 120%, #06303a 0%, transparent 60%),
+      linear-gradient(180deg, #010A13 0%, #04141d 50%, #010A13 100%);
+    z-index: 0;
+  }
+  /* Faint vignette to darken the edges (premium, cinematic) */
+  .bg-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.75) 100%);
+    z-index: 1;
+  }
+
+  /* Particle canvas sits above the bg gradients but below all UI */
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ===========================================================================
+     2. SHARED UI PRIMITIVES
+     =========================================================================== */
+
+  /* Angular gold button (the League ACCEPT style) */
+  .lol-btn {
+    position: relative;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-200);
+    background: linear-gradient(180deg, #1E2328 0%, #010A13 100%);
+    border: 2px solid var(--gold-300);
+    padding: 16px 54px;
+    cursor: pointer;
+    /* sharp clipped corners — angular League look */
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    transition: color .25s, box-shadow .25s, background .25s;
+    box-shadow: inset 0 0 12px rgba(200,170,110,0.12);
+  }
+  .lol-btn:hover {
+    color: #fff;
+    background: linear-gradient(180deg, #32281a 0%, #0a0a06 100%);
+    box-shadow: inset 0 0 18px rgba(200,170,110,0.35), 0 0 22px rgba(200,155,60,0.3);
+  }
+  .lol-btn:active { transform: translateY(1px); }
+
+  /* Gold hairline divider with center diamond */
+  .gold-rule {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; width: 100%;
+  }
+  .gold-rule::before, .gold-rule::after {
+    content: ""; height: 1px; flex: 1;
+    background: linear-gradient(90deg, transparent, var(--gold-300), transparent);
+  }
+  .gold-rule i {
+    width: 7px; height: 7px; transform: rotate(45deg);
+    border: 1px solid var(--gold-300); background: var(--gold-400);
+  }
+
+  /* ===========================================================================
+     3. PHASE 1 — LOADING / "ENGINEER FOUND"
+     =========================================================================== */
+  #loading {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 42px;
+    text-align: center;
+    transition: opacity .9s ease, transform 1.1s ease;
+  }
+  /* The cinematic wipe-out when ACCEPT is clicked */
+  #loading.exiting {
+    opacity: 0;
+    transform: scale(1.08);
+    pointer-events: none;
+  }
+
+  .medallion {
+    position: relative;
+    width: 320px; height: 320px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Pulsing dark center disc with the text */
+  .medallion-core {
+    position: relative;
+    width: 208px; height: 208px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, #0c2a37 0%, #03101a 70%, #010a13 100%);
+    border: 2px solid var(--gold-300);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; padding: 0 18px;
+    box-shadow: inset 0 0 30px rgba(11,196,194,0.18), 0 0 30px rgba(0,0,0,0.6);
+    animation: corePulse 2.6s ease-in-out infinite;
+    z-index: 3;
+  }
+  @keyframes corePulse {
+    0%, 100% { box-shadow: inset 0 0 30px rgba(11,196,194,0.18), 0 0 24px rgba(11,196,194,0.10); }
+    50%      { box-shadow: inset 0 0 40px rgba(11,196,194,0.34), 0 0 44px rgba(11,196,194,0.30); }
+  }
+
+  .medallion-core .found {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.05;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold-200);
+    text-shadow: 0 0 14px rgba(200,170,110,0.45);
+  }
+  .medallion-core .found .gold { color: var(--gold-400); display:block; }
+  .medallion-core .subtitle {
+    font-family: var(--font-body);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal-300);
+    margin-top: 4px;
+  }
+
+  /* Two animated rings: a slow rotating dashed ring + a charging progress ring */
+  .ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+  }
+  .ring.dashed {
+    border: 2px dashed rgba(11,196,194,0.35);
+    animation: spin 18s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* SVG progress ring (the "charge") */
+  .ring-svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 4; }
+  .ring-progress {
+    fill: none; stroke: var(--teal-400); stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px var(--teal-glow));
+    stroke-dasharray: 1; stroke-dashoffset: 1; /* set via JS as fractions */
+    transition: stroke-dashoffset 1.1s cubic-bezier(.7,0,.3,1);
+  }
+  /* Outer glow pulse ring */
+  .ring.pulse {
+    border: 1px solid rgba(11,196,194,0.5);
+    animation: pulseRing 2.6s ease-out infinite;
+  }
+  @keyframes pulseRing {
+    0%   { transform: scale(0.92); opacity: 0.7; }
+    70%  { transform: scale(1.15); opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  .loading-title {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.4em;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .loading-foot {
+    position: fixed; bottom: 26px; left: 0; right: 0;
+    text-align: center;
+    font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim);
+    z-index: 11;
+  }
+
+  /* ===========================================================================
+     4. PHASE 2 — CHAMPION SELECT / "DECLARE YOUR SECTION"
+     =========================================================================== */
+  #select {
+    position: fixed; inset: 0; z-index: 5;
+    display: none;                 /* shown by JS after transition */
+    grid-template-rows: auto 1fr auto;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  #select.visible { opacity: 1; }
+
+  /* ---- Top header bar ---- */
+  .cs-header {
+    position: relative;
+    text-align: center;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(200,170,110,0.25);
+    background: linear-gradient(180deg, rgba(10,22,40,0.9), rgba(1,10,19,0.4));
+  }
+  .cs-header h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: clamp(1.1rem, 3vw, 1.9rem);
+    color: var(--gold-200);
+    text-shadow: 0 0 20px rgba(200,170,110,0.3);
+  }
+  /* Cosmetic countdown timer */
+  .cs-timer {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-weight: 700;
+    color: var(--teal-300);
+    line-height: 1;
+    margin-top: 2px;
+    text-shadow: 0 0 18px var(--teal-glow);
+  }
+  .cs-timer-bar {
+    width: min(420px, 60%); height: 3px; margin: 8px auto 0;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .cs-timer-bar span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--teal-400), var(--gold-400));
+    width: 100%;
+    transform-origin: left;
+    animation: drain 15s linear forwards;
+  }
+  @keyframes drain { to { transform: scaleX(0); } }
+
+  /* ---- Main body: sidebar + grid ---- */
+  .cs-body {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ---- Left sidebar (roles/sections) ---- */
+  .cs-sidebar {
+    background: linear-gradient(180deg, rgba(3,16,26,0.95), rgba(1,10,19,0.95));
+    border-right: 1px solid rgba(200,170,110,0.2);
+    padding: 18px 0;
+    overflow-y: auto;
+  }
+  .cs-sidebar .first-pick {
+    font-size: 0.62rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--text-dim); padding: 0 22px 14px;
+  }
+
+  .role {
+    position: relative;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 22px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .2s, border-color .2s;
+  }
+  .role:hover { background: rgba(11,196,194,0.06); }
+  .role.active {
+    background: linear-gradient(90deg, rgba(200,155,60,0.16), transparent);
+    border-left-color: var(--gold-400);
+    box-shadow: inset 12px 0 24px -16px rgba(200,170,110,0.8);
+  }
+  /* Diamond icon frame */
+  .role-icon {
+    flex: none;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--gold-300);
+    transform: rotate(45deg);
+    background: radial-gradient(circle, #0c2230, #03101a);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .role.active .role-icon {
+    border-color: var(--gold-400);
+    box-shadow: 0 0 14px rgba(200,170,110,0.4);
+  }
+  .role-icon svg { width: 22px; height: 22px; transform: rotate(-45deg); }
+  .role-icon svg path,
+  .role-icon svg circle,
+  .role-icon svg line,
+  .role-icon svg polyline,
+  .role-icon svg rect { stroke: var(--gold-300); }
+  .role.active .role-icon svg path,
+  .role.active .role-icon svg circle,
+  .role.active .role-icon svg line,
+  .role.active .role-icon svg polyline,
+  .role.active .role-icon svg rect { stroke: var(--teal-300); }
+
+  .role-text small {
+    display: block;
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .role-text strong {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.92rem;
+    letter-spacing: 0.06em;
+    color: var(--gold-200);
+  }
+  .role.active .role-text strong { color: #fff; }
+  .role.active .role-text small { color: var(--teal-300); }
+
+  /* ---- Right grid of champion cards ---- */
+  .cs-main {
+    position: relative;
+    overflow-y: auto;
+    padding: 22px 26px 30px;
+  }
+  /* Section intro line (changes with selection) */
+  .cs-section-head {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .cs-section-head h2 {
+    font-family: var(--font-display);
+    text-transform: uppercase; letter-spacing: 0.16em;
+    font-size: 1.15rem; color: var(--gold-400);
+  }
+  .cs-section-head p { font-size: 0.8rem; color: var(--text-dim); }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+  }
+
+  /* Champion portrait card — now a self-contained info panel */
+  .card {
+    position: relative;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--hairline);
+    background: var(--navy-800);
+    overflow: hidden;
+    /* fade-in animation per card (staggered via JS inline delay) */
+    opacity: 0; transform: translateY(12px);
+    animation: cardIn .5s ease forwards;
+    transition: border-color .25s, box-shadow .25s, transform .25s;
+  }
+  @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
+  .card:hover {
+    border-color: var(--gold-300);
+    box-shadow: 0 0 26px rgba(200,170,110,0.26), inset 0 0 40px rgba(11,196,194,0.08);
+    transform: translateY(-3px);
+  }
+
+  /* Portrait area — colored gradient banner + big glyph + name overlaid */
+  .card-portrait {
+    position: relative;
+    height: 132px;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(200,170,110,0.25);
+  }
+  .card-portrait::after {
+    /* sheen sweep on hover */
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.16) 50%, transparent 60%);
+    transform: translateX(-120%);
+    transition: transform .7s ease;
+  }
+  .card:hover .card-portrait::after { transform: translateX(120%); }
+
+  /* Big glyph sits in a framed diamond-ish badge */
+  .card-glyph {
+    flex: none;
+    width: 76px; height: 76px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem;
+    background: rgba(1,10,19,0.45);
+    border: 1px solid rgba(200,170,110,0.4);
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.5);
+  }
+
+  /* Tier/role pill in corner */
+  .card-tag {
+    position: absolute; top: 10px; right: 12px;
+    font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 8px;
+    background: rgba(1,10,19,0.8);
+    border: 1px solid var(--gold-300);
+    color: var(--gold-200);
+  }
+
+  .card-name {
+    font-family: var(--font-display);
+    font-size: 1.15rem; letter-spacing: 0.04em;
+    color: var(--gold-200);
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+    z-index: 1;
+  }
+
+  /* Body holds the full blurb + links inline (no modal needed) */
+  .card-body {
+    display: flex; flex-direction: column;
+    flex: 1;
+    padding: 16px 20px 18px;
+    background: linear-gradient(180deg, rgba(1,10,19,0.2), rgba(1,10,19,0.7));
+  }
+  .card-blurb {
+    font-size: 0.86rem; line-height: 1.6; color: var(--text-dim);
+    flex: 1;
+  }
+  .card-links {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .card-links a {
+    font-family: var(--font-display);
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--gold-200); text-decoration: none;
+    border: 1px solid var(--gold-300);
+    padding: 7px 16px;
+    transition: background .2s, color .2s, box-shadow .2s;
+  }
+  .card-links a:hover {
+    background: var(--gold-400); color: #03101a;
+    box-shadow: 0 0 14px rgba(200,155,60,0.4);
+  }
+
+  .card-empty {
+    grid-column: 1 / -1;
+    text-align: center; color: var(--text-dim);
+    padding: 60px 0; font-size: 0.85rem; letter-spacing: 0.1em;
+  }
+
+  /* ---- Bottom bar: search + status ---- */
+  .cs-footer {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 24px;
+    border-top: 1px solid rgba(200,170,110,0.25);
+    background: linear-gradient(0deg, rgba(10,22,40,0.95), rgba(1,10,19,0.4));
+  }
+  .cs-search {
+    position: relative; flex: 1; max-width: 420px;
+  }
+  .cs-search input {
+    width: 100%;
+    background: rgba(1,10,19,0.85);
+    border: 1px solid var(--gold-300);
+    color: var(--gold-200);
+    font-family: var(--font-body);
+    font-size: 0.85rem; letter-spacing: 0.08em;
+    padding: 11px 14px 11px 38px;
+    outline: none;
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .cs-search input:focus {
+    border-color: var(--teal-400);
+    box-shadow: 0 0 14px var(--teal-glow);
+  }
+  .cs-search input::placeholder { color: var(--text-dim); }
+  .cs-search .icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; opacity: 0.7;
+  }
+  .cs-search .icon path, .cs-search .icon circle { stroke: var(--gold-300); }
+
+  .cs-mode {
+    margin-left: auto;
+    text-align: right;
+    font-family: var(--font-display);
+    text-transform: uppercase; letter-spacing: 0.16em;
+    font-size: 0.7rem; color: var(--text-dim);
+  }
+  .cs-mode strong { display:block; color: var(--gold-400); font-size: 0.85rem; }
+
+  /* ===========================================================================
+     5. RESPONSIVE
+     =========================================================================== */
+  @media (max-width: 760px) {
+    body { overflow: auto; }
+    .cs-body { grid-template-columns: 1fr; }
+    .cs-sidebar {
+      display: flex; overflow-x: auto; overflow-y: hidden;
+      border-right: none; border-bottom: 1px solid rgba(200,170,110,0.2);
+      padding: 10px;
+    }
+    .cs-sidebar .first-pick { display: none; }
+    .role { flex-direction: column; gap: 6px; padding: 10px 14px; border-left: none; border-bottom: 3px solid transparent; text-align:center; }
+    .role.active { border-left: none; border-bottom-color: var(--gold-400); box-shadow: inset 0 -12px 20px -14px rgba(200,170,110,0.8); }
+    .role-text small { display:none; }
+    .card-grid { grid-template-columns: 1fr; }
+    .medallion { width: 260px; height: 260px; }
+    .medallion-core { width: 168px; height: 168px; }
+    .medallion-core .found { font-size: 1.15rem; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Shared cinematic background layers -->
+  <div class="bg-cinematic"></div>
+  <canvas id="particles"></canvas>
+  <div class="bg-vignette"></div>
+
+  <!-- =======================================================================
+       PHASE 1 — LOADING SCREEN  ("ENGINEER FOUND")
+       ======================================================================= -->
+  <section id="loading">
+    <div class="loading-title">Match Found</div>
+
+    <div class="medallion">
+      <!-- decorative animated rings -->
+      <div class="ring pulse"></div>
+      <div class="ring dashed"></div>
+
+      <!-- charging progress ring (SVG) -->
+      <svg class="ring-svg" viewBox="0 0 320 320" aria-hidden="true">
+        <circle class="ring-track" cx="160" cy="160" r="150"></circle>
+        <circle class="ring-progress" id="chargeRing" cx="160" cy="160" r="150"
+                pathLength="1"></circle>
+      </svg>
+
+      <!-- center disc -->
+      <div class="medallion-core">
+        <div class="found">ENGINEER<span class="gold">FOUND</span></div>
+        <div class="subtitle">Full Stack · React · .NET · Python · 5v5</div>
+      </div>
+    </div>
+
+    <button class="lol-btn" id="acceptBtn">Accept!</button>
+
+    <div class="gold-rule" style="width:min(360px,70%);"><i></i></div>
+
+    <div class="loading-foot">Summoner&rsquo;s Rift &nbsp;·&nbsp; Ranked Solo/Duo &nbsp;·&nbsp; Portfolio Edition</div>
+  </section>
+
+  <!-- =======================================================================
+       PHASE 2 — CHAMPION SELECT  ("DECLARE YOUR SECTION")
+       ======================================================================= -->
+  <section id="select">
+
+    <!-- Header with cosmetic countdown -->
+    <header class="cs-header">
+      <h1>Declare Your Section</h1>
+      <div class="cs-timer" id="csTimer">15</div>
+      <div class="cs-timer-bar"><span></span></div>
+    </header>
+
+    <!-- Sidebar + grid -->
+    <div class="cs-body">
+      <!-- Left: roles / sections (populated by JS) -->
+      <nav class="cs-sidebar" id="roleNav">
+        <div class="first-pick">First Pick</div>
+        <!-- .role items injected here -->
+      </nav>
+
+      <!-- Right: section heading + card grid -->
+      <main class="cs-main">
+        <div class="cs-section-head">
+          <h2 id="sectionTitle">About Me</h2>
+          <p id="sectionDesc">Get to know the summoner behind the screen.</p>
+        </div>
+        <div class="card-grid" id="cardGrid"><!-- cards injected here --></div>
+      </main>
+    </div>
+
+    <!-- Footer: search + mode -->
+    <footer class="cs-footer">
+      <div class="cs-search">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.5-4.5"></path>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search..." aria-label="Search cards" />
+      </div>
+      <div class="cs-mode">
+        Pick Order
+        <strong>5v5 · Ranked Solo/Duo</strong>
+      </div>
+    </footer>
+  </section>
+
+<script>
+/* ===========================================================================
+   CONTENT — EDIT EVERYTHING HERE
+   ---------------------------------------------------------------------------
+   ROLES  : the left sidebar sections. `key` ties cards to a section.
+   CARDS  : each portrait card. `role` must match a ROLE key.
+            `glyph` is an emoji/letter shown in the portrait.
+            `grad`  is a CSS gradient for the portrait background.
+   =========================================================================== */
+
+  // -- Left sidebar sections (icons are inline SVG, drawn below) --
+  const ROLES = [
+    { key: "about",      label: "Moinul Islam",  name: "About Me",   desc: "CS @ Florida State · Full-stack engineer · Tallahassee, FL.", icon: "user" },
+    { key: "projects",   label: "Featured",      name: "Projects",   desc: "Featured builds, ranked by impact.",          icon: "code" },
+    { key: "experience", label: "Match History", name: "Experience", desc: "Internships, research, and leadership.",      icon: "briefcase" },
+    { key: "skills",     label: "Ability Kit",   name: "Skills",     desc: "Languages, frameworks, and tools.",           icon: "bolt" },
+    { key: "contact",    label: "Queue Up",      name: "Contact",    desc: "Send a ping. Let's connect.",                 icon: "mail" },
+  ];
+
+  // -- Portrait cards. Add/remove freely. --
+  const CARDS = [
+    // ABOUT
+    { role:"about", name:"Moinul Islam", tag:"Main", glyph:"🧙", grad:"linear-gradient(160deg,#0b3a44,#0a1628)",
+      blurb:"Full-stack software engineer and CS student at Florida State University (Minor in Math & Physics, GPA 3.6). I build real-time, AI-grounded web apps and ship production software across .NET, React, and Python. Based in Tallahassee, FL.",
+      links:[{label:"LinkedIn", href:"https://linkedin.com/in/moinuli"},{label:"GitHub", href:"https://github.com/Moinul-Islam-04"}] },
+    { role:"about", name:"Education", tag:"Lore", glyph:"🎓", grad:"linear-gradient(160deg,#3a2e10,#0a1628)",
+      blurb:"Florida State University — B.S. in Computer Science, Minor in Mathematics & Physics (Aug 2022 – May 2026). GPA: 3.6/4.0. Coursework: Data Structures, Algorithms & Generic Programming I & II, Discrete Math, Computer Organization, Operating Systems, Parallel & Distributed Systems, Computer Forensics." },
+    { role:"about", name:"Leadership", tag:"Buffs", glyph:"🤝", grad:"linear-gradient(160deg,#10203a,#0a1628)",
+      blurb:"Internal Vice President, Lambda Phi Epsilon (May 2025 – May 2026) — led chapter development for a 30+ member org, including the \"Brotherhood Health Index\" and \"Personal Excellence Program.\" Secretary, Asian American Student Union (Aug 2024 – May 2026) — grew membership by 100+ through culturally relevant events and workshops." },
+
+    // PROJECTS
+    { role:"projects", name:"LoL Companion", tag:"S-Tier", glyph:"🎮", grad:"linear-gradient(160deg,#0b4a44,#0a1628)",
+      blurb:"A real-time League of Legends chatbot grounded in live Riot API data, using a decentralized MCP architecture: a Python FastMCP server exposes champion and live-match tools consumed by a Claude tool-use loop in a Next.js streaming client. Deployed both services to Render via one-click Blueprint with bearer-token auth, TTL-cached Data Dragon lookups, SSE streaming, and a pre-warm strategy to kill cold-start latency on free-tier infra. Stack: Next.js, TypeScript, Python, FastMCP, Anthropic SDK.",
+      links:[{label:"Live Demo", href:"https://lol-web-client.onrender.com"},{label:"GitHub", href:"https://github.com/Moinul-Islam-04/Matchup_chatbot"}] },
+    { role:"projects", name:"Peep Companion", tag:"A-Tier", glyph:"👾", grad:"linear-gradient(160deg,#3a1030,#0a1628)",
+      blurb:"A full-stack Windows desktop app combining a habit tracker, gacha monster-catcher, and a procedurally-generated turn-based roguelite dungeon. Features automated CI/CD releases via GitHub Actions and a self-updating installer distributed to end users. Built a turn-based combat engine and a procedural node-map generator inspired by Slay the Spire. Stack: Electron, React, Vite, JavaScript.",
+      links:[{label:"GitHub", href:"https://github.com/Moinul-Islam-04/peep-companion"}] },
+    { role:"projects", name:"This Portfolio", tag:"A-Tier", glyph:"🕹️", grad:"linear-gradient(160deg,#0b3a44,#102d3e)",
+      blurb:"The site you're looking at — a League of Legends-themed personal portfolio reimagined as the game's \"Match Found\" and Champion Select screens. Built as a single self-contained HTML file with zero frameworks: hand-written CSS for the angular hextech UI, a canvas particle field, and vanilla JS for the section filtering, live search, and cinematic phase transition. Stack: HTML, CSS, JavaScript (Canvas).",
+      links:[{label:"GitHub", href:"https://github.com/Moinul-Islam-04"}] },
+
+    // EXPERIENCE
+    { role:"experience", name:"FSU Internal Services", tag:"2025—26", glyph:"🏢", grad:"linear-gradient(160deg,#0b3a44,#0a1628)",
+      blurb:"Software Engineering Intern (Aug 2025 – Apr 2026), Tallahassee, FL. Accelerated the production timeline by 15% by authoring and merging 10 PRs for critical features and bug fixes, ahead of sprint deadlines. Collaborated with back-end devs to improve the faculty experience on the HPC scheduler, cutting average task submission time. Designed a responsive front-end dashboard surfacing real-time job-queue metrics, reducing faculty support requests by 20%." },
+    { role:"experience", name:"Pasco County Gov", tag:"Summer 25", glyph:"💼", grad:"linear-gradient(160deg,#3a2e10,#0a1628)",
+      blurb:"Software Engineering Intern (May 2025 – Aug 2025), New Port Richey, FL. Developed and deployed two full-stack internal apps using a .NET REST API and Nuxt.js/Vue.js, streamlining county-wide data-entry workflows for the Biological and Risk Management teams. Improved on-time sprint delivery from 60% to 95% via Agile practices. Wrote unit and integration tests achieving 85%+ coverage across both production systems." },
+    { role:"experience", name:"Research Assistant", tag:"2023—25", glyph:"🔬", grad:"linear-gradient(160deg,#10203a,#0a1628)",
+      blurb:"Florida State University (Sept 2023 – May 2025), Tallahassee, FL. Achieved a 15% performance increase in complex material simulations by implementing a custom Density Functional Theory (DFT) program leveraging Rutgers' DFTpy framework on HPC clusters. Presented research findings at the undergraduate research symposium to an audience of 300+ students, faculty, and industry professionals." },
+
+    // SKILLS
+    { role:"skills", name:"Languages", tag:"Q", glyph:"💻", grad:"linear-gradient(160deg,#0b4a44,#0a1628)",
+      blurb:"Java, Python, C/C++, SQL (Postgres), JavaScript, TypeScript, C#." },
+    { role:"skills", name:"Frameworks", tag:"W", glyph:"🧩", grad:"linear-gradient(160deg,#3a1030,#0a1628)",
+      blurb:"React, Next.js, Node.js, Flask, Vue.js/Nuxt.js, .NET, RESTful APIs, FastMCP." },
+    { role:"skills", name:"Tools & Cloud", tag:"E", glyph:"☁️", grad:"linear-gradient(160deg,#102a3a,#0a1628)",
+      blurb:"Git, Docker, GCP, Render, GitHub Actions (CI/CD), Electron, Vite." },
+    { role:"skills", name:"Libraries", tag:"R", glyph:"📊", grad:"linear-gradient(160deg,#2a3a10,#0a1628)",
+      blurb:"pandas, NumPy, Matplotlib, SciPy, Anthropic SDK." },
+
+    // CONTACT
+    { role:"contact", name:"Email", tag:"Ping", glyph:"✉️", grad:"linear-gradient(160deg,#0b3a44,#0a1628)",
+      blurb:"imoinulislam1@gmail.com", links:[{label:"Email Me", href:"mailto:imoinulislam1@gmail.com"}] },
+    { role:"contact", name:"Phone", tag:"Direct", glyph:"📞", grad:"linear-gradient(160deg,#3a2e10,#0a1628)",
+      blurb:"813-407-8141", links:[{label:"Call", href:"tel:8134078141"}] },
+    { role:"contact", name:"LinkedIn", tag:"Connect", glyph:"🔗", grad:"linear-gradient(160deg,#10203a,#0a1628)",
+      blurb:"linkedin.com/in/moinuli — let's connect professionally.", links:[{label:"Visit", href:"https://linkedin.com/in/moinuli"}] },
+    { role:"contact", name:"GitHub", tag:"Code", glyph:"🐙", grad:"linear-gradient(160deg,#2a2a2a,#0a1628)",
+      blurb:"github.com/Moinul-Islam-04 — browse my repositories.", links:[{label:"Visit", href:"https://github.com/Moinul-Islam-04"}] },
+  ];
+
+  /* ---- Inline SVG icon set for sidebar roles ---- */
+  const ICONS = {
+    user:      `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>`,
+    code:      `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></svg>`,
+    briefcase: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="7" width="18" height="13"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+    bolt:      `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>`,
+    mail:      `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="5" width="18" height="14"/><path d="M3 6l9 7 9-7"/></svg>`,
+  };
+
+/* ===========================================================================
+   PHASE 1 LOGIC — accept button → charge ring → wipe to Phase 2
+   =========================================================================== */
+  const loading   = document.getElementById('loading');
+  const select    = document.getElementById('select');
+  const acceptBtn = document.getElementById('acceptBtn');
+  const chargeRing= document.getElementById('chargeRing');
+
+  // start the ring partially charged so it has presence
+  chargeRing.style.strokeDashoffset = "0.35"; // 65% pre-filled-ish
+
+  acceptBtn.addEventListener('click', () => {
+    // 1. fully charge the ring
+    chargeRing.style.strokeDashoffset = "0";
+    acceptBtn.textContent = "Accepted";
+    acceptBtn.disabled = true;
+    acceptBtn.style.opacity = "0.6";
+
+    // 2. after the ring charges, wipe out Phase 1
+    setTimeout(() => {
+      loading.classList.add('exiting');
+    }, 700);
+
+    // 3. reveal Phase 2 (display flip happens mid-fade)
+    setTimeout(() => {
+      loading.style.display = 'none';
+      document.body.style.overflow = 'hidden';
+      select.style.display = 'grid';
+      // force reflow so the opacity transition runs
+      void select.offsetWidth;
+      select.classList.add('visible');
+      startCountdown();
+    }, 1500);
+  });
+
+/* ===========================================================================
+   PHASE 2 LOGIC — build sidebar, render cards, filter, search, modal
+   =========================================================================== */
+  const roleNav     = document.getElementById('roleNav');
+  const cardGrid    = document.getElementById('cardGrid');
+  const sectionTitle= document.getElementById('sectionTitle');
+  const sectionDesc = document.getElementById('sectionDesc');
+  const searchInput = document.getElementById('searchInput');
+
+  let activeRole = ROLES[0].key;
+
+  // -- Build the left sidebar from ROLES --
+  ROLES.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'role' + (i === 0 ? ' active' : '');
+    el.dataset.key = r.key;
+    el.innerHTML = `
+      <div class="role-icon">${ICONS[r.icon] || ICONS.user}</div>
+      <div class="role-text">
+        <small>${r.label}</small>
+        <strong>${r.name}</strong>
+      </div>`;
+    el.addEventListener('click', () => selectRole(r.key));
+    roleNav.appendChild(el);
+  });
+
+  // -- Render the card grid for the active role + current search query --
+  function renderCards() {
+    const q = searchInput.value.trim().toLowerCase();
+    const list = CARDS.filter(c =>
+      c.role === activeRole &&
+      (q === "" || c.name.toLowerCase().includes(q) || (c.blurb || "").toLowerCase().includes(q))
+    );
+
+    cardGrid.innerHTML = "";
+
+    if (list.length === 0) {
+      cardGrid.innerHTML = `<div class="card-empty">No champions match that search.</div>`;
+      return;
+    }
+
+    list.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.style.animationDelay = (i * 0.05) + 's';
+      el.innerHTML = `
+        <div class="card-portrait" style="background:${c.grad}">
+          ${c.tag ? `<span class="card-tag">${c.tag}</span>` : ""}
+          <span class="card-glyph">${c.glyph || "🎴"}</span>
+          <span class="card-name">${c.name}</span>
+        </div>
+        <div class="card-body">
+          <p class="card-blurb">${c.blurb || ""}</p>
+          ${c.links && c.links.length ? `<div class="card-links">${
+            c.links.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${l.label}</a>`).join("")
+          }</div>` : ""}
+        </div>`;
+      cardGrid.appendChild(el);
+    });
+  }
+
+  // -- Switch active section --
+  function selectRole(key) {
+    activeRole = key;
+    document.querySelectorAll('.role').forEach(el =>
+      el.classList.toggle('active', el.dataset.key === key)
+    );
+    const r = ROLES.find(x => x.key === key);
+    sectionTitle.textContent = r.name;
+    sectionDesc.textContent  = r.desc;
+    renderCards();
+  }
+
+  // -- Live search --
+  searchInput.addEventListener('input', renderCards);
+
+  // -- Cosmetic countdown (15 → 0, then holds) --
+  function startCountdown() {
+    const timer = document.getElementById('csTimer');
+    let t = 15;
+    const id = setInterval(() => {
+      t--;
+      timer.textContent = t;
+      if (t <= 0) { clearInterval(id); timer.textContent = "0"; }
+    }, 1000);
+  }
+
+  // initial render
+  selectRole(activeRole);
+
+/* ===========================================================================
+   BACKGROUND PARTICLES — slow drifting hextech motes (canvas)
+   Lightweight: a few dozen soft particles rising with gentle shimmer.
+   =========================================================================== */
+  (function particles() {
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let w, h, parts;
+
+    function resize() {
+      w = canvas.width  = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      const count = Math.min(70, Math.floor(w * h / 24000));
+      parts = Array.from({ length: count }, () => spawn());
+    }
+    function spawn() {
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.8 + 0.4,
+        vy: -(Math.random() * 0.35 + 0.08),
+        vx: (Math.random() - 0.5) * 0.18,
+        a: Math.random() * 0.5 + 0.15,
+        tw: Math.random() * 0.02 + 0.005,      // twinkle speed
+        teal: Math.random() > 0.45              // teal vs gold mote
+      };
+    }
+    function tick() {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of parts) {
+        p.y += p.vy; p.x += p.vx;
+        p.a += Math.sin(Date.now() * p.tw) * 0.004; // subtle shimmer
+        if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+        const alpha = Math.max(0.05, Math.min(0.7, p.a));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.teal
+          ? `rgba(11,196,194,${alpha})`
+          : `rgba(200,170,110,${alpha})`;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = p.teal ? 'rgba(11,196,194,0.6)' : 'rgba(200,170,110,0.6)';
+        ctx.fill();
+      }
+      requestAnimationFrame(tick);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    tick();
+  })();
+</script>
+</body>
+</html>
