@@ -304,29 +304,24 @@
     color: var(--gold-200);
     text-shadow: 0 0 20px rgba(200,170,110,0.3);
   }
-  /* Cosmetic countdown timer */
-  .cs-timer {
+  /* Current section indicator (replaces the old countdown) */
+  .cs-current {
     font-family: var(--font-display);
-    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-size: clamp(1.1rem, 3vw, 1.7rem);
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
     color: var(--teal-300);
     line-height: 1;
-    margin-top: 2px;
+    margin-top: 6px;
     text-shadow: 0 0 18px var(--teal-glow);
+    transition: opacity .25s ease;
   }
-  .cs-timer-bar {
-    width: min(420px, 60%); height: 3px; margin: 8px auto 0;
-    background: rgba(255,255,255,0.08);
-    overflow: hidden;
+  /* Static decorative underline beneath the section name */
+  .cs-current-rule {
+    width: min(280px, 50%); height: 2px; margin: 10px auto 0;
+    background: linear-gradient(90deg, transparent, var(--gold-400), transparent);
   }
-  .cs-timer-bar span {
-    display: block; height: 100%;
-    background: linear-gradient(90deg, var(--teal-400), var(--gold-400));
-    width: 100%;
-    transform-origin: left;
-    animation: drain 15s linear forwards;
-  }
-  @keyframes drain { to { transform: scaleX(0); } }
 
   /* ---- Main body: sidebar + grid ---- */
   .cs-body {
@@ -638,8 +633,8 @@
     <!-- Header with cosmetic countdown -->
     <header class="cs-header">
       <h1>Declare Your Section</h1>
-      <div class="cs-timer" id="csTimer">15</div>
-      <div class="cs-timer-bar"><span></span></div>
+      <div class="cs-current" id="csCurrent">About Me</div>
+      <div class="cs-current-rule"></div>
     </header>
 
     <!-- Sidebar + grid -->
@@ -786,7 +781,6 @@
       // force reflow so the opacity transition runs
       void select.offsetWidth;
       select.classList.add('visible');
-      startCountdown();
     }, 1500);
   });
 
@@ -798,6 +792,7 @@
   const sectionTitle= document.getElementById('sectionTitle');
   const sectionDesc = document.getElementById('sectionDesc');
   const searchInput = document.getElementById('searchInput');
+  const csCurrent   = document.getElementById('csCurrent');
 
   let activeRole = ROLES[0].key;
 
@@ -860,22 +855,12 @@
     const r = ROLES.find(x => x.key === key);
     sectionTitle.textContent = r.name;
     sectionDesc.textContent  = r.desc;
+    csCurrent.textContent    = r.name;   // live "you are here" header indicator
     renderCards();
   }
 
   // -- Live search --
   searchInput.addEventListener('input', renderCards);
-
-  // -- Cosmetic countdown (15 → 0, then holds) --
-  function startCountdown() {
-    const timer = document.getElementById('csTimer');
-    let t = 15;
-    const id = setInterval(() => {
-      t--;
-      timer.textContent = t;
-      if (t <= 0) { clearInterval(id); timer.textContent = "0"; }
-    }, 1000);
-  }
 
   // initial render
   selectRole(activeRole);
